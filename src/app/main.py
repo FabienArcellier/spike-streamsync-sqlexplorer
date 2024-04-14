@@ -1,42 +1,48 @@
+from typing import Dict
+
+import pandas
 import streamsync as ss
+import sqlalchemy as sa
+from sqlalchemy.orm import sessionmaker
 
-# This is a placeholder to get you started or refresh your memory.
-# Delete it or adapt it as necessary.
-# Documentation is available at https://streamsync.cloud
+engine = sa.create_engine("postgresql://admin:admin@localhost/Adventureworks")
+Session = sessionmaker(engine)
 
-# Shows in the log when the app starts
-print("Hello world!")
 
-# Its name starts with _, so this function won't be exposed
-def _update_message(state):
-    is_even = state["counter"] % 2 == 0
-    message = ("+Even" if is_even else "-Odd")
-    state["message"] = message
-
-def decrement(state):
-    state["counter"] -= 1
-    _update_message(state)
-
-def increment(state):
-    state["counter"] += 1
-    # Shows in the log when the event handler is run
-    print(f"The counter has been incremented.")
-    _update_message(state)
+def pick_table(state, payload):
+    schema, table = payload.split(".")
+    state['table'] = payload
+    state['table_content'] = pandas.read_sql_table(table, engine, schema=schema)
 
 # Initialise the state
 
-# "_my_private_element" won't be serialised or sent to the frontend,
-# because it starts with an underscore
+def _list_tables() -> Dict[str, str]:
+    inspector = sa.inspect(engine)
+    schemas = inspector.get_schema_names()
+    all_tables = {}
+    for schema in schemas:
+        tables = inspector.get_table_names(schema=schema)
+        for table in tables:
+            all_tables[f"{schema}.{table}"] = f"{schema}.{table}"
+
+    return all_tables
+
+
+def _first_table() -> str:
+    table = list(_list_tables().keys())[0]
+    return table
+
+
+def _first_table_content() -> pandas.DataFrame:
+    table = _first_table()
+    schema, table = table.split(".")
+    return pandas.read_sql_table(table, engine, schema=schema)
 
 initial_state = ss.init_state({
-    "my_app": {
-        "title": "My App"
-    },
-    "_my_private_element": 1337,
-    "message": None,
-    "counter": 26,
+    "sqlalchemy_version": sa.__version__,
+    "tables": _list_tables(),
+    "table": _first_table(),
+    "table_content": _first_table_content(),
 })
 
-_update_message(initial_state)
 
-initial_state.import_stylesheet('main', '/static/main.css')
