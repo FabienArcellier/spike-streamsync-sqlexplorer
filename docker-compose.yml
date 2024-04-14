@@ -7,3 +7,35 @@ services:
     volumes:
       - ./src/:/app/src
     init: true
+
+  db:
+    image: postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: Adventureworks
+    volumes:
+      - db:/var/lib/postgresql/data
+      - ./data/db:/data
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    ports:
+      - "5442:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.fr
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_SERVER_JSON_FILE: /config/servers.json
+    depends_on:
+      - db
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+      - ./data/pgadmin:/config
+
+volumes:
+    db:
+    pgadmin:
